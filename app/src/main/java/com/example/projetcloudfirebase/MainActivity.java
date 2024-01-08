@@ -48,11 +48,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        tabUri = new Vector<String>();
+        tabUri = new Vector<String>();// tableau dans lequel on stockera les chemins des images pour les supprimer plus facilement
         setContentView(R.layout.activity_main);
         previewView = findViewById(R.id.cameraPreview);
         ListenableFuture<ProcessCameraProvider> listenableFuture = ProcessCameraProvider.getInstance(this);
-        Button startCaptureButton = findViewById(R.id.startCaptureButton);
+        Button startCaptureButton = findViewById(R.id.startCaptureButton);// Bouton servant à lancer ou stopper la capture automatique
         listenableFuture.addListener(new Runnable() {
             @Override
             public void run() {
@@ -67,31 +67,31 @@ public class MainActivity extends AppCompatActivity {
         startCaptureButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (enCours) {
+                if (enCours) {// Si le mode automatique est sur true
                     handler.removeCallbacksAndMessages(null);
-                    Toast.makeText(MainActivity.this, "Fin", Toast.LENGTH_LONG).show();
-                    enCours = false;
+                    Toast.makeText(MainActivity.this, "Fin", Toast.LENGTH_LONG).show();// On affiche un toast pour le faire savoir
+                    enCours = false;// On passe encours à False
                 } else {
-                    enCours = true;
-                    Toast.makeText(MainActivity.this, "Mis en mode capture auto", Toast.LENGTH_LONG).show();
-                    captureAuto();
+                    enCours = true;// Si on est pas en mode automatique, il faut mettre à true
+                    Toast.makeText(MainActivity.this, "Mis en mode capture auto", Toast.LENGTH_LONG).show();// On le fait savoir
+                    captureAuto();// On appelle la fonction captureAuto
                 }
             }
         });
     }
-    private void captureAuto() {
+    private void captureAuto() {// Fonction pour lancer la capture automatique
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                if(enCours)
+                if(enCours==true)
                 {
-                capturePhoto();
+                capturePhoto();//  On appelle la fonction capturePhoto
                 }
-                handler.postDelayed(this, intervaleDeCapture);
+                handler.postDelayed(this, intervaleDeCapture);// Délais
             }
         }, intervaleDeCapture);
     }
-    public void startCam(ProcessCameraProvider cameraProvider) {
+    public void startCam(ProcessCameraProvider cameraProvider) {// Fonction pour lancer la caméra
         CameraSelector cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA;
         Preview preview = new Preview.Builder().build();
         preview.setSurfaceProvider(previewView.getSurfaceProvider());
@@ -103,10 +103,10 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
     }
-    private void capturePhoto(){
+    private void capturePhoto(){// Fonction dans laquelle on prend la photo
         if(imageCapture==null) return;
         Random rand = new Random();
-        nom = String.valueOf(System.currentTimeMillis() + rand.nextInt(10000));
+        nom = String.valueOf(System.currentTimeMillis() + rand.nextInt(10000));// On assigne le nom au temps actuel et un random
         ContentValues contentValues = new ContentValues();
         contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, nom);
         contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg");
@@ -120,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults)
             {
-                uploadImage(outputFileResults.getSavedUri());
+                uploadImage(outputFileResults.getSavedUri());// Si la capture se passe bien, on appelle uploadImage
             }
             @Override
             public void onError(@NonNull ImageCaptureException exception)
@@ -129,9 +129,27 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    private void deleteImage(String file){
-        StorageReference ref = storage.getReferenceFromUrl("gs://testimage-ffe9e.appspot.com/"+file);
-        ref.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+    private void uploadImage(Uri file) {// Fonction pour upload une image
+        StorageReference ref = referenceStorage.child("images/" + nom);// On créer la référence
+        ref.putFile(file).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {// On upload
+            @Override
+            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                tabUri.add(ref.getPath());// Si c'est un succes, on ajoute le chemin au tableau Uri
+                nbStorage++;// On augmente l'entier nbStorage pour savoir combien d'images il y a dans le storage
+                if(nbStorage>=20) {// Si il y a plus de 20 images
+                    deleteImage(tabUri.get(compt));// On supprime en appelant la fonction
+                    compt++;// On augmente le compteur servant à naviguer dans le tableau
+                    nbStorage--;// On enlève 1 au compteur d'images sur le storage
+                }
+            }
+        }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+            }
+        });}
+    private void deleteImage(String file){// Fonction pour supprimer une image à partir de son chemin interne
+        StorageReference ref = storage.getReferenceFromUrl("gs://testimage-ffe9e.appspot.com/"+file);// On créer la rérerence
+        ref.delete().addOnSuccessListener(new OnSuccessListener<Void>() {// On supprime la photo
             @Override
             public void onSuccess(Void aVoid) {      ;
 
@@ -142,22 +160,4 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    private void uploadImage(Uri file) {
-        StorageReference ref = referenceStorage.child("images/" + nom);
-        ref.putFile(file).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-            @Override
-            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                tabUri.add(ref.getPath());
-                nbStorage++;
-                if(nbStorage>=60) {
-                    deleteImage(tabUri.get(compt));
-                    compt++;
-                    nbStorage--;
-                }
-            }
-        }).addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-            }
-        });}
 }
